@@ -1,6 +1,7 @@
 ##Rarification Hellinger_transformation
 library(permute, lattice)
 library(vegan)
+
 OTU=read.table("clipboard" )
 s=t(OTU)
 Sample_id=read.table("clipboard" )
