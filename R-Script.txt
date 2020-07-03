@@ -1,0 +1,496 @@
+##Rarification Hellinger_transformation
+library(permute, lattice)
+library(vegan)
+OTU=read.table("clipboard" )
+s=t(OTU)
+Sample_id=read.table("clipboard" )
+e<- Sample_id 
+cbind(e,s)->s2
+
+diversity(s,index = "shannon")
+head(s2)
+
+dim(s2)
+com=aggregate(s2[,2:2552],by=list(s2[,1]),sum)
+dim(com)
+com2=com[,-1]
+rowSums(com[,-1])
+
+row.names(com2)=com[,1]
+com2[rowSums(com2)>10000,]-> comx
+
+com2[rowSums(com2)<10000,]-> comy
+dim(comy)
+dim(comx)
+
+rrarefy(comx,10000)-> comx.rarefied
+
+rbind(comx.rarefied,comy)-> com.final
+
+com3=decostand(com.final,"hell")
+
+write.table(com3, "new7.xls")
+rm(com, com.final,com2,com3, comx, comy,e,s,comx.rarefied,s2, Sample_id)
+##Adonis F model selection
+adonis(Host_OTU_rar_filtrd ~ host_Genus, data=metadta_genus2,  permutations=999)
+
+## Bray curtis distance measures
+dist_genus<- vegdist(Host_OTU_rar_filtrd, method = "bray")
+
+##multivariate homogeneity of group dispersions (variances) ,(PCoA)
+PCOA_genus2<- betadisper(dist_genus, metadta_genus2$host_Genus)
+#variance explained for axis 1
+as.data.frame(PCOA_genus2$eig)[1,]/sum(PCOA_genus2$eig)*100
+#variance explained for axis 2
+as.data.frame(PCOA_genus2$eig)[2,]/sum(PCOA_genus2$eig)*100
+##extracting scores for plot
+Score_PCOA_genus2<- as.data.frame(scores(PCOA_genus2, display= c("sites"), choices=c(1,2)))
+
+Score_PCOA_genus2<- cbind(Score_PCOA_genus2, metadta_genus2)
+#creating factors
+Score_PCOA_genus2$Genus<-factor(Score_PCOA_genus2$Genus, levels = c("Cantharellus","Craterellus","Pseudocraterellus","Hydnum", "Lycoperdon","Tricholoma","Lepista","Paxillus","Tapinella","Lactarius"))
+##create data frame to circle in graph, every genus will have its own data
+df_circle_tapi <- Score_PCOA_genus2[Score_PCOA_genus2$Genus == "Tapinella", ]
+group_cantha<-rbind(df_circle_canth.1, df_circle_canth1, df_circle_canth2) 
+
+
+##PCoA plot of bacterial community compostion across different host genera (figure 2 B)
+pcoa_plot_genus<-ggplot(Score_PCOA_genus2, aes(PCoA1, PCoA2,  color=Genus, shape=Genus)) +
+  geom_point(size=4) +theme_bw()+ labs(colour="Host Fungus")+labs(x="PCoA1 (18.4%)", y="PCoA2 14.6%")+
+  guides(colour = guide_legend("Host Fungus"), shape = guide_legend("Host Fungus"))+
+  theme(legend.position=c(0.91,0.78),legend.title =element_text(size=14),legend.text=element_text(size=12), axis.text=element_text(size=12),axis.title=element_text(size=15),legend.background = element_rect(fill = "snow2"),legend.key = element_rect(fill = "white", color = "black"))+
+  scale_shape_manual(values = c(15,17,16,8,11,12,3,18,23,13))+
+  geom_encircle(data = df_circle_hyd, aes(x=PCoA1, y=PCoA2),fill="#7CAE00", alpha=0.3,inherit.aes=F)+
+  geom_encircle(data = df_circle_lyco, aes(x=PCoA1, y=PCoA2),fill="lightgreen", alpha=0.2,inherit.aes=F)+
+  geom_encircle(data = group_cantha, aes(x=PCoA1, y=PCoA2), inherit.aes=F, color="blue", fill="#F8766D", alpha=0.2)+
+  geom_encircle(data = df_circle_lactta1, aes(x=PCoA1, y=PCoA2),fill="skyblue", alpha=0.3,inherit.aes=F)+
+  geom_encircle(data = df_circle_tapi, aes(x=PCoA1, y=PCoA2), alpha=0.3,inherit.aes=F)
+
+
+#####################################################################
+##Adonis F model selection
+adonis((bpart_otu_rar,  ~ Age.of.fruitbody+Fruitbody.part, data=metadta_genus2,  permutations=999)
+
+dist_age<- vegdist(bpart_otu_rar, method = "bray")
+PCOA_Age_canth<- betadisper(dist_age, bpart_cantha2$Age.of.fruitbody)
+#variance explained for axis 1
+as.data.frame(PCOA_Age_canth$eig)[1,]/sum(PCOA_Age_canth$eig)*100
+#variance explained for axis 2
+as.data.frame(PCOA_Age_canth$eig)[2,]/sum(PCOA_Age_canth$eig)*100
+##extracting scores
+Score_PCOA_age<- as.data.frame(scores(PCOA_Age_canth, display= c("sites"), choices=c(1,2)))
+#confirming if samples are same metadata and scores data 
+identical(rownames(Score_PCOA_age), rownames(bpart_cantha2))
+Score_PCOA_age<- cbind(Score_PCOA_age, bpart_cantha2)
+#plotting the PCoA fro age of fruitbody and fruitbody part  (Figure 1A)
+pcoa_bpart1_plot<-ggplot(Score_PCOA_age, aes(PCoA1, PCoA2,  color=Age.of.fruitbody, shape=Fruitbody.part)) +
+  geom_point(size=4) +theme_bw()+ labs(colour="Fruitbody Age", shape="Fruitbody Part")+labs(x="PCoA1 (13.4%)", y="PCoA2 (9.6%)")+
+  theme(legend.title =element_text(size=14),legend.position= "none",legend.box = "vertical",legend.text=element_text(size=12), axis.text=element_text(size=12),
+        axis.title=element_text(size=15),legend.background = element_rect(fill = "gray84"),
+        legend.key = element_rect(fill = "white", color = "black"),
+        plot.margin = margin(.5,.5,.5,.5, "cm"),
+        legend.margin = margin(6, 6, 6, 6) ) +
+  scale_color_manual(values=c("Red", "orange", "darkblue","steelblue", "red", "deepskyblue", "lightblue" ))+
+  scale_shape_manual(values = c(15,16,17,8,7,12,11),labels=c("Cap", "Stipe (Lower part)", "Stipe (Middle part)"))
+#################################################################################
+# community analysis external  VS internal fruitbody part (figure 1B)
+#confirming the effect with PERMNOVA
+adonis(Age_canth_OTUrar ~ Fruitbody.part, data=bpart_cantha3,  permutations=999)
+dist_bpart3<- vegdist(Age_canth_OTUrar, method = "bray")
+PCOA_bpart_canth3<- betadisper(dist_bpart3, bpart_cantha3$Fruitbody.part)
+#variance explained for axis 1
+as.data.frame(PCOA_bpart_canth3$eig)[1,]/sum(PCOA_bpart_canth3$eig)*100
+#variance explained for axis 2
+as.data.frame(PCOA_bpart_canth3$eig)[2,]/sum(PCOA_bpart_canth3$eig)*100
+##extract scores
+PCOA_bpart_canth3<- as.data.frame(scores(PCOA_bpart_canth3, display= c("sites"), choices=c(1,2)))
+identical(rownames(PCOA_bpart_canth3), rownames(bpart_cantha3))
+PCOA_bpart_canth3<- cbind(bpart_cantha3, PCOA_bpart_canth3)
+
+pcoa_bpart2<-ggplot(PCOA_bpart_canth3, aes(PCoA1, PCoA2,  color=Fruitbody.part, shape=Fruitbody.part)) +
+  geom_point(size=4) +theme_bw()+ labs(colour="Fruitbody Part", shape="Fruitbody Part")+labs(x="PCoA1 (13.1%)", y="PCoA2 (8.9%)")+
+  theme(legend.title =element_text(size=14),legend.position= "none",legend.text=element_text(size=12), axis.text=element_text(size=12),
+        axis.title=element_text(size=15),legend.background = element_rect(fill = "gray84"),
+        legend.key = element_rect(fill = "white", color = "black"),
+        plot.margin = margin(.5,.5,.5,.5, "cm"),
+        legend.margin = margin(6, 6, 6, 6) ) +
+  scale_color_manual(values=c( "#0aa849","darkblue",   "lightblue" ),labels=c("External", "Internal"))+
+  scale_shape_manual(values = c(15,16,17,8,7,12,11), labels=c("External", "Internal"))
+#################################################
+#merging the plots ,#figure 1
+library(gridExtra)
+
+plot_grid(gplot_bpart2,gplot_bpart3, ncol=2, rel_heights = c(4/4,3/4 ))
+library(cowplot)
+
+legend1<-get_legend(pcoa_bpart1_plot)
+legend2<-get_legend(pcoa_bpart2)
+
+plot_grid(pcoa_bpart1_plot, pcoa_bpart2,legend1,legend2, ncol=2,nrow=2, rel_heights = c(1.4/2,0.3/2),labels = c('A', 'B', '', ''),label_size = 20, label_x = .07, label_y = 1)
+###################################################
+library(ggpubr) (Figure 2A)
+library(rstatix)
+library(gridExtra)
+#alpha diversity indices of bacterial communities in different fungal host genera
+indices <- Host_meta
+indices$Richness <- rowSums(Host_OTU_rar_filtrd>0)
+indices$Shannon <- diversity(Host_OTU_rar_filtrd) # shannon
+
+#comparing shannon diversity indices across hosts
+t_test_shannon_genus<-indices%>% t_test(Shannon~Genus)
+t_test_richness_genus<-indices%>% t_test(Richness~Genus)
+#saving tables (table S2)
+write.table(t_test_shannon_genus,"t_test_shannon_genus.xls")
+write.table(t_test_richness_genus,"t_test_richness_genus.xls")
+
+#generated fake genera names to manipulate the figure legend, edited data on excel
+
+ndices3$fake_genus<-factor(indices3$fake_genus, levels = c("Cantharellus","Craterellus","Pseudocraterellus","Hydnum", "Lycoperdon","Tricholoma","Lepista","Paxillus","Tapinella","Lactarius","NA"))
+#factors
+indices3$Genus<-factor(indices3$Genus, levels = c("Cantharellales","Cantharellus","Craterellus","Pseudocraterellus","Hydnum", "Agaricales", "Lycoperdon","Tricholoma","Lepista","Boletales","Paxillus","Tapinella","Russulales","Lactarius"))
+#Ploting shannon diversity
+palpha1<-
+  ggplot(indices3, aes(x=fake_genus, y=Shannon,color=Genus))+geom_point()+
+  geom_boxplot(width=0.7,outlier.shape = NA, alpha=0.3, fill=cols2)+ geom_jitter(width = 0.1)+
+  theme_bw()+theme_classic()+theme(plot.margin = margin(1, 0, 1, 0.15, "cm"),legend.position = "none",axis.text.x = element_blank(), legend.text.align = 0,axis.title.x=element_blank(),legend.title =element_text(size=14),legend.text=element_text(size=12),axis.text.y =element_text(size=12),axis.title.y =element_text( size=14))+
+  labs(colour="Host Fungus")+ylab("Shannon Diversity")+scale_colour_manual("", values = cols, label = lbl)#+scale_fill_manual(guide = FALSE,values = cols2) 
+
+lbl <- c(expression(bold("Cantharellales")), "Cantharellus", "Craterellus","Pseudocraterellus","Hydnum",
+         expression(bold("Agaricales")), "Lycoperdon","Tricholoma","Lepista",
+         expression(bold("Boletales")), "Paxillus","Tapinella",
+         expression(bold("Russulales")), "Lactarius")
+cols <- c(NA, "#f24646","#919103","#6542d6","#7d788f",
+          NA, "#057cf2","#bf17bf","#51779e",
+          NA, "#b2b80b","#fc9403",
+          NA, "#098f40")
+indices3<-read.excel(indices2, sep = "\t", header = T)
+
+cols2 <- c( "#f24646","#919103","#6542d6","#7d788f",
+            "#057cf2","#bf17bf","#51779e",
+            "#b2b80b","#fc9403",
+           "#098f40")
+#ploting richness
+palpha2<-
+  ggplot(indices3, aes(x=fake_genus, y=Richness,color=Genus))+geom_point()+
+  geom_boxplot(width=0.7,outlier.shape = NA, alpha=0.3, fill=cols2)+ geom_jitter(width = 0.1)+
+  theme_bw()+theme_classic()+theme(plot.margin = margin(1, 0, 1, 0, "cm"),legend.position = "none", axis.text.x = element_blank(), legend.text.align = 0,axis.title.x=element_blank(),legend.title =element_text(size=14),legend.text=element_text(size=13),axis.text.y =element_text(size=12),axis.title.y =element_text( size=14))+
+  labs(colour="Host Fungus")+ylab("Richness")+scale_colour_manual("", values = cols, label = lbl)#+scale_fill_manual(guide = FALSE,values = cols2) 
+
+#merging plots of alpha diversity (Figure 2A)
+legend_alpha<-get_legend(palpha2)
+palpha<-grid.arrange(palpha1, palpha2,legend_alpha,  ncol=3, nrow = 1, widths=c(1,1,0.5))
+
+
+pcoa_plot_genus2<-pcoa_plot_genus+theme(plot.margin = margin(1, 1, 0.3, 0, "cm"))
+
+ggarrange(palpha,pcoa_plot_genus2,nrow = 1,widths=c(2,1.8), labels = "AUTO",font.label = list(size = 20, color = "Black"))
+
+
+#############################################
+#creating phyloseq object of fungal host data, for abundance analysis
+library(phyloseq)
+##Phyloseq objects
+host_taxa= tax_table(host_taxa)
+host_OTU_phy=otu_table(Host_otu, taxa_are_rows = T)
+host_sample_phy=sample_data(Host_meta)
+Physeq_host=phyloseq(host_OTU_phy,host_sample_phy,host_taxa)
+
+
+##transform sample counts
+tabund_host = transform_sample_counts(Physeq_host, function(x) x / sum(x) )
+
+##turn all OTUs into Phylum or any rank level counts
+
+glom_phylm_host <- tax_glom(tabund_host,  "Phylum")
+glom_class_host <- tax_glom(tabund_host,  "Class")
+
+glom_phylum # should list # taxa as # phyla
+df_glom_host_phylm<- psmelt(tabund_host) # create dataframe from phyloseq object
+df_glom_host_class<- psmelt(glom_class_host)
+df_glom_host_phylm$Phylum <- as.character(df_glom_host_phylm$Phylum) #convert to character
+df_glom_host_class$Class <- as.character(df_glom_host_class$Class)
+# rename phyla with < 1% abundance to "Others"
+df_glom_host_phylm$Phylum[df_glom_host_phylm$Abundance < 0.01] <- "Others"
+
+#Count # phyla to set color palette
+length(unique(df_glom_host_phylm$Phylum))
+
+unique(df_glom_host_phylm$Phylum)
+## Write phylum names that appear in list of unique phylums(here in examples are class names so dont get confused)
+df_glom_host_phylm$Phylum <- factor(df_glom_host_phylm$Phylum, levels = c("Proteobacteria", "Acidobacteria","Bacteroidetes", 			"Actinobacteria","Verrucomicrobia", "Firmicutes",                     
+                                                                          "Armatimonadetes", "Others","Spirochaetes", "Chlamydiae","Cyanobacteria" ))
+
+#plot with condensed phyla into "unknown" category #spatial_plot
+
+df_glom_host_phylm$sample_Genus[df_glom_host_phylm$sample_Species=="atrotomentosus"]<-"Tapinella"
+#ploting abundance at phyla level across host genera  (figure 3)
+gplot_host_bact2<-
+  ggplot(df_glom_host_phylm, aes(x=sample_Genus,y=Abundance, fill=Phylum))+
+  geom_bar( stat="identity", position="fill", width = 0.9)+
+  theme(legend.text = element_text(size=12,face = "bold"),legend.title = element_text(size = 14,face = "bold"), axis.text.x =element_text(size = 12, color = "black",face = "bold"),axis.text.y=element_text(size = 12, color = "black", face = "bold"),axis.title.x = element_text(size = 12,color = "black",face = "bold"),axis.title.y = element_text(size = 12,face = "bold"), panel.grid = element_blank(),plot.title = element_text(hjust = 0.5))+labs(x=NULL,y="Relative Abundance",  fill="Phylum")+
+  scale_fill_manual(values = c( "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7","#999999","salmon", "red","green","#000000" ))
+   
+##comparing the groups with wilcoxon test
+df_glom_host_phylm%>% group_by(Phylum)%>% do(tidy(t.test(Abundance~sample_Genus, data=.)))
+
+wilco_test_host_abund2<-compare_means(Abundance~sample_Genus, data =df_glom_host_phylm, group.by = "Phylum", method = "wilcox.test")
+
+write.table(wilco_test_host_abund, "wilco_test_host_abund.xls")
+#################################
+##Bacterial Abundance at different ages
+library(phyloseq)
+#creating phyloseq object
+otu_bact_age= otu_table(read.table("clipboard", header = TRUE, row.names = 1), taxa_are_rows = FALSE)
+tax_bact_age= tax_table(tax_bact_age)
+meta_b= sample_data(read.table("clipboard", header = TRUE, row.names = 1, sep="\t"))
+phy_b_age<-phyloseq(otu_bact_age,tax_bact_age,meta_b)
+colnames(tax_table(phy_b_age))<-c("Phylum","Class","Order","Family","Genus","Species")
+taxa_names(tax_bact_age)<- taxa_names(otu_bact_age)
+
+##transform sample counts
+tabund_age = transform_sample_counts(phy_b_age, function(x) x / sum(x) )
+
+##turning all OTUs into Phylum or any rank level counts
+
+glom_phylm_age <- tax_glom(tabund_age,  "Phylum")
+glom_class_age <- tax_glom(tabund_age,  "Class")
+
+ # should list # taxa as # phyla
+df_glom_age_phylm<- psmelt(glom_phylm_age) # create dataframe from phyloseq object
+df_glom_age_class<- psmelt(glom_class_age)
+
+df_glom_age_phylm$Phylum <- as.character(df_glom_age_phylm$Phylum) #convert to character
+df_glom_age_class$Class <- as.character(df_glom_age_class$Class)
+
+# rename phyla with < 2% abundance to "Others"
+df_glom_age_phylm$Phylum[df_glom_age_phylm$Abundance < 0.02] <- "Others"
+
+#Count # phyla to set color palette
+length(unique(df_glom_age_phylm$Phylum))
+
+unique(df_glom_age_class$Class)
+
+df_glom_age_class$Age.of.fruitbody <- factor(df_glom_age_class$Age.of.fruitbody, levels = c("Young", "Middle aged", "Old"))
+
+
+############################################################################################################################# figure used as graphic abstract
+library(dplyr)
+library(data.table)
+# following individual age level abnudance dataframes filtered from df_glom_age_class and df_glom_age_phylm for pie plot
+#young_clas_b
+#middage_clas_b
+#Old_clas_b
+#Old_phyl_b
+#Young_phyl_b
+#midage_phyl_b
+midage_phyl_b<- df_glom_age_phylm%>%
+#  filter(Age.of.fruitbody=="Middle aged")
+
+##creating data frame suitable for facet_wrap pie graph
+#individual data sets were created for both phylum and class level for all age groups and their abundance were summerize using below code
+data_mpb=data.table(midage_phyl_b)
+data_mpb<-data_mpb[, sum(Abundance), by=Phylum]
+
+##data for class and phylum mergged into one and facet plot was created
+df_cls_pie_merg<-rbind(data_ycb,data_mcb,data_ocb)
+df_phyl_pie_merg<-rbind(data_ypb,data_mpb,data_opb)
+
+##copy the data from excel and read that here
+#df_phyl_pie_merg<- read.table("clipboard", header = TRUE, sep = "\t", dec = ",")
+
+##convert to factors to keep he order of graphs and taxa according to your choice
+df_phyl_pie_merg$Age <- factor(df_phyl_pie_merg$Age, levels = c("Young","Middle aged", "Old"))
+df_phyl_pie_merg$Phylum <- factor(df_phyl_pie_merg$Phylum, levels = c("Proteobacteria","Chlamydiae", "Bacteroidetes","Acidobacteria", "Actinobacteria","Others"))
+df_cls_pie_merg$Class <- factor(df_cls_pie_merg$Class, levels = c("Alphaproteobacteria","Chlamydiia", "Betaproteobacteria","Planctomycetacia","Sphingobacteriia","Chitinophagia","Deltaproteobacteria","Gammaproteobacteria","Acidobacteriia","Actinobacteria","Others"))
+############################################################################################################################
+#creating pie plots of dataframes
+#abundance of phylaat age groups (pie plot)
+facet_pie_phylm<-ggplot(df_phyl_pie_merg, aes(x="", y=Per, fill=Phylum)) + geom_bar(stat="identity", width=1,colour="white")+ coord_polar("y", start=0)+
+  geom_text(aes(label = paste0(round(Per, digits = 2), "%"),x = 1.3), position = position_stack(vjust = 0.5), size=3.25)+facet_wrap(~Age)+
+  labs(x = NULL, y = NULL)+theme_classic() + theme(axis.line = element_blank(),
+                                                   axis.text = element_blank(),
+                                                   axis.ticks = element_blank(),
+                                                   plot.title = element_text(hjust = 0.5, color = "Black"),
+                                                   legend.title = element_text(size = 14),
+                                                   strip.text = element_text(size=14))+
+                                                    scale_fill_manual(values=c("#b2d683", "deepskyblue", "#009E73","#de6f90", "darkseagreen","#e0be6e","#CC79A7"))
+
+
+#abundance of classes at age groups (pie plot)
+pie_clas_mrg<-ggplot(df_cls_pie_merg, aes(x="", y=Per, fill=Class)) + geom_bar(stat="identity", width=1)+ coord_polar("y", start=0)+
+  geom_text(aes(label = paste0(round(Per, digits = 2), "%"),x = 1.3), position = position_stack(vjust = 0.5), size=3.25)+facet_wrap(~Age)+
+  labs(x = NULL, y = NULL)+theme_classic() + theme(legend.box.margin=margin(10,10,10,10),
+                                                  plot.margin=unit(c(-0.5,1,1,1),"cm"),axis.line = element_blank(),
+                                                   axis.text = element_blank(),
+                                                   axis.ticks = element_blank(),
+                                                   plot.title = element_text(hjust = 0.5, color = "Black"),
+                                                   legend.title = element_text(size = 14),
+                                                   strip.text.x  = element_blank())+ scale_fill_manual(values=c( "#b2d683", "deepskyblue", "#009E73","#de6f90", "darkseagreen","#fca103","#0072B2","#CC79A7","#D55E00" ,"#05b322","#d9b6ce"))
+ 
+#combining plots (figure used as manuscript abstract)
+grid.arrange(facet_pie_phylm,pie_clas_mrg,  nrow=2, ncol=1,
+                                top = textGrob("Abundance of Bacteria at different growth stages of Cantharellus cibarius ",gp=gpar(fontsize=16,font=3)))
+########################################################################
+## ploting abundance of phyla in different parts at different age levels. (figure S3)
+ ggplot(df_glom_age_phylm, aes(x=Fruit.body.part,y=Abundance, fill=Phylum))+
+  geom_bar( stat="identity", position="fill", width = 0.83)+
+  theme(aspect.ratio = 2/2,legend.position = c(0.82, 0.2),legend.box = "horizontal",legend.text = element_text(size = 12),legend.title = element_text(size = 14), axis.text.x =element_text(size = 12, angle = 45),axis.text.y=element_text(size = 12),axis.title.x = element_text(size = 12),axis.title.y = element_text(face="bold", size = 12), panel.grid = element_blank(),plot.title = element_text(hjust = 0.5))+labs(x="",y=" Abundance",  fill="Phylum")+
+  scale_fill_manual(values = c( "darkorchid2", "deepskyblue", "#009E73","black", "darkseagreen","#D55E00","#CC79A7" ,"#0072B2" ,"salmon","red","darkblue" ,"#000000" ))+facet_wrap(~Age.of.fruitbody,ncol=2)+
+  scale_x_discrete(labels=c("Cap", "Gills","Stipe (L I)", "Stipe(M I)","Cap (E)","Stipe (L E)","Stipe (M E)"))+
+  guides(fill = guide_legend(ncol =2, byrow = FALSE))
+
+## abundance of classes in different fruitbody parts (figure S3)
+ggplot(df_glom_age_class, aes(x=Sample,y=Abundance, fill=Class))+
+  geom_bar( stat="identity", position="stack", width = 0.83)+
+  theme(aspect.ratio = 2/2,legend.position = "right",legend.box = "horizontal",legend.text = element_text(size = 12),legend.title = element_text(size = 14), axis.text.x =element_text(size = 12, angle = 45),axis.text.y=element_text(size = 12),axis.title.x = element_text(size = 12),axis.title.y = element_text(face="bold", size = 12), panel.grid = element_blank(),plot.title = element_text(hjust = 0.5))+labs(x="",y=" Abundance",  fill="Class")+
+  scale_fill_manual(values = c( "darkorchid2", "deepskyblue", "#009E73","black", "darkseagreen","#D55E00","#CC79A7" ,"#0072B2" ,"salmon","red","darkblue" ,"#000000" ))+
+  scale_x_discrete(labels=c("Cap", "Gills","Stipe (L I)", "Stipe(M I)","Cap (E)","Stipe (L E)","Stipe (M E)"))+
+  guides(fill = guide_legend(ncol =1 , byrow = FALSE))
+################################################################
+
+library(dplyr)  (Figure S2)
+df_glom_age_phylm_test$Age.of.fruitbody <- factor(df_glom_age_phylm_test$Age.of.fruitbody, levels = c("Young","Middle aged", "Old"))
+comparsions_age<- list(c("Young","Middle aged"),c("Middle aged", "Old"), c("Young", "Old"))
+
+##individual plots of  bacterial Phyla and classes abundance acros fruitbody age groups, all of most abundant phyla were ploted and compared with wilcoxon test using below code, save as P1,p2,p3,p4,p5,p6 .... p13
+p5<-df_glom_age_phylm_test %>% 
+  filter(Phylum == c("Chlamydiae")) %>%
+  ggplot +
+  aes(x=Age.of.fruitbody, y=Abundance, fill=Age.of.fruitbody)+geom_boxplot(alpha=0.7)+
+  geom_jitter(position = position_jitter(width = 0.1))+theme_classic()+theme(legend.position = "none", axis.title.x = element_blank(), axis.text.x = element_text(face = "bold", size = 12),
+                                                                             axis.text.y = element_text(size = 10), axis.title.y = element_text(face = "bold", size = 12), plot.title = element_text(face="bold",size =18))+ scale_fill_brewer(palette = "RdBu")+
+  labs(y="Relative abundance", title = "Chlamydiae")+
+  stat_compare_means(label.y = 0.19, size=6)+
+  stat_compare_means(comparisons = comparsions_age, size=5, method = "wilcox.test", label = "p.signif")
+
+##class abundance test
+df_glom_age_class_test$Age.of.fruitbody <- factor(df_glom_age_class_test$Age.of.fruitbody, levels = c("Young","Middle aged", "Old"))
+
+
+#########
+#combining all the individual plots into 1 figure. (Figure S2)
+title1=textGrob("Phyla", gp=gpar(fontface="bold", fontsize=24))
+title2=textGrob("Classes", gp=gpar(fontface="bold", fontsize=24))
+
+grid1<-grid.arrange(pp,p2,p3,p4,p5, nrow=2, ncol=4, top=title1)
+
+grid2<-grid.arrange(p6,p7,p8,p9,p10,p11,p12,p13, nrow=2, ncol=4, top=title2)
+
+grid.arrange(grid1, grid2, nrow=2, ncol=1)
+
+######################################################################################################
+#top 10% most abundant taxa
+otu_age<-read.table("clipboard", header = T, sep = "\t")
+
+top10_age_taxa<-top10_Phylotypes(otu_age,tax_bact_age)
+##
+otu_age<- cbind(as.data.frame(rownames(otu_age)),otu_age)
+
+top10_age_taxa<-merge_phyloseq(top10_age_taxa,meta_b)
+
+GP4_agetax = transform_sample_counts(top10_age_taxa, function(x) x/sum(x))
+
+glom_genus_age <- tax_glom(GP4_agetax, taxrank = 'Genus')
+
+ 
+data_glom_genus_age<- psmelt(glom_genus_age) # create dataframe from phyloseq object
+
+data_glom_genus_age$ta6 <- as.character(data_glom_genus_age$ta6) #convert to character
+
+unique(data_glom_genus_age$ta6)
+#Comparin relatie abundance  of bacterial genera across age groups 
+genus_means_<-compare_means(Abundance~Age.of.fruitbody, data =data_glom_genus_age, group.by = "Genus", method = "wilcox.test")
+#removing those non significant groups
+genus_means_<-genus_means_%>% filter(p.signif!="ns")
+
+#data_glom_genus_un removed taxa unclassified at genera level
+data_glom_genus_un<-data_glom_genus_age%>%filter(!str_detect(ta6, "unclassif."))
+#creating factors
+data_glom_genus_un$Age.of.fruitbody <- factor(data_glom_genus_un$Age.of.fruitbody, levels = c("Young","Middle aged", "Old"))
+
+
+getPalette = colorRampPalette(brewer.pal(9, "Paired"))
+colourCount2 = length(unique(data_glom_genus_un$ta6))
+#calculationg overall total relative abundance per taxa group 
+data_glom_genus_age%>%data.table(.)%>%.[, sum(Abundance), by=ta6]
+#calculationg  relative abundance of significantly varying(across age groups) taxa only  
+data_glom_genus_age%>% data.table(.)%>%.[, sum(Abundance), by=ta6]
+
+#selecting the top 8 most abundant taxa that are significantly varying across fruitbody age groups
+
+genus_8<-as.data.frame(data_glom_genus_un%>% filter(ta6==c("Rhizobium","Chitinophaga","Mucilaginibacter","Pseudomonas","Tardiphaga","Pedobacter",
+                                   "Frigoribacterium","Novosphingobium" )))
+#creating factors
+genus_8$ta6=factor(genus_8$ta6,levels = c("Rhizobium","Chitinophaga","Mucilaginibacter","Tardiphaga","Pseudomonas","Pedobacter",                                                                                                    "Frigoribacterium","Novosphingobium"))
+
+#creating bar plot of top 8 significant genera
+signif_genu_barplot<-ggplot(genus_8,aes( x=Age.of.fruitbody, y=Abundance,fill=ta6))+geom_bar(width =0.5,stat = "identity", position = "fill")+
+  scale_fill_manual(values=custom.col)+theme_bw()+theme(legend.title = element_text(face = "bold",size = 12),axis.title.y = element_text(size = 12, face = "bold"),axis.text.y = element_text(size = 12,face = "bold"),axis.text.x = element_text(size = 12, face = "bold"),legend.position = "right",
+                                             legend.text = element_text(size = 12))+labs(fill="Genus", y="Relative Abundance", x=NULL)
+#custom colors for barplot
+custom.col <- c("#999999", "#E69F00", "#56B4E9", "#009E73",
+                "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+
+
+# data was manually edited in excel and top 10 was selected based on abundance, reading the data again for pie plot
+pie_data_genus<-read.table("clipboard", header = T, sep = "\t")
+
+#creating pie plot of top 10 genera (general)
+top10_genera_pie<-ggplot(pie_data_genus, aes(x="", y=Abundance, fill=Genera)) + geom_bar(stat="identity", width=1,colour="white")+ coord_polar("y", start=0)+
+  geom_text(aes(label = paste0(round(Abundance, digits = 2), "%"),x = 1.3), position = position_stack(vjust = 0.5), size=3.25)+
+  labs(x = NULL, y = NULL)+theme_classic() + theme(axis.line = element_blank(),
+                                                   legend.text = element_text(size = 12),
+                                                   axis.text = element_blank(),
+                                                   axis.ticks = element_blank(),
+                                                   plot.title = element_text(hjust = 0.5, color = "Black"),
+                                                   legend.title = element_text(size = 14),
+                                                   strip.text = element_text(size=14))+
+  scale_fill_manual(values=c("#eb8f0e",  "#009E73","#de6f90", "darkseagreen","#e0be6e","#CC79A7", "#05b322","#d9b6ce", "#b2d683", "deepskyblue"))
+#creating factors for pie plot data
+pie_data_genus$Genera=factor(pie_data_genus$Genera,levels = c("Rhizobium","Chitinophaga","Mucilaginibacter","Tardiphaga","Burkholderia Complex","Pseudomonas","Pedobacter",
+                                          "Bradyrhizobium","Salinibacterium","Novosphingobium"))
+
+
+#################################################################################
+##sequence abundance, sample sum was calculate on excel 
+age_sampleSum<- read.table("clipboard", header = T, sep="\t")
+
+## histogram of sample depths (For fungal host data)
+hist1<-ggplot(host_sampleSum, aes(x = Count)) +
+  geom_histogram(aes(color=sampletype, fill = sampletype), 
+                 position = "identity", bins = 20, alpha = 0.5)+theme_classic() +theme(legend.text = element_text(size = 12),legend.title = NULL,axis.title.x = element_text(size = 12),axis.text.y = element_text(size=12), axis.title.y = element_text(size = 12,face = "bold"), axis.title.x.bottom =element_text(size = 12,face = "bold"))+
+  scale_color_manual(values = c("red","#00AFBB", "#E7B800"))+
+  scale_fill_manual(values = c("red","#00AFBB", "#E7B800" ))+labs(x="Number of Reads per sample", y="Frequency")
+# histogram of sample depths (For c.cibarius data)
+hist2<-ggplot(age_sampleSum, aes(x = Count)) +
+  geom_histogram(aes(color=sampletype, fill = sampletype), 
+                 position = "identity", bins = 20, alpha = 0.5)+theme_classic() +theme(legend.title = NULL, axis.title.x = element_text(size = 12),axis.text.y = element_text(size=12),
+                                                                                       axis.title.y = element_text(size = 12,face = "bold"),
+                                                                                       axis.title.x.bottom =element_text(size = 12,face = "bold"),
+                                                                                       legend.text = element_text(size = 12))+
+  scale_color_manual(values = c("red","#00AFBB", "#E7B800"))+
+  scale_fill_manual(values = c("red","#00AFBB", "#E7B800" ))+labs(x="Number of reads per sample", y="Frequency")
+#merging both histogram plots
+
+
+ggarrange(hist1,hist2, labels = c("A","B"), ncol = 2, common.legend = T)
+## creating rarefaction curves plot
+
+S <-specnumber(t(otu_age)) # observed number of species
+(raremax <- min(rowSums(t(otu_age))))
+Srare <- rarefy(t(otu_age), raremax)
+plot(S, Srare, xlab = "Observed No. of Species", ylab = "Rarefied No. of Species")
+abline(0, 1)
+rarecurve(t(otu_age), step = 20, sample = raremax, col = "blue", cex = 0.6)
+
+##########################################################################################################################
+#functional data
+#loaded data
+
+abund_canth= otu_table(canhta_funct_abund, taxa_are_rows = TRUE)
+meta_canth=sample_data(as.data.frame(read.table("clipboard", header = TRUE, row.names = 1, sep="\t")))
+taxdata=as.data.frame(read.table("clipboard", header = TRUE, row.names = 1, sep="\t"))
+taxdata=tax_table(taxdata)
+phy_canth=phyloseq(abund_canth,meta_canth,taxdata)
+
